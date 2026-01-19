@@ -365,7 +365,6 @@ const PromptCraft = () => {
             <div className="bg-white rounded-lg shadow-md p-4 border-t-4 border-blue-500 flex flex-col overflow-hidden">
               <div className="flex items-center justify-between mb-3 flex-shrink-0">
                 <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <Brain size={20} className="text-blue-500" />
                   Dein Prompt-Entwurf
                 </h3>
               </div>
