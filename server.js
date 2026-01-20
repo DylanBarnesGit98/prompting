@@ -23,33 +23,34 @@ app.post('/api/generate', async (req, res) => {
           'X-Title': 'PromptCraft Trainer'
         },
         body: JSON.stringify({
-          model: 'meta-llama/llama-3.2-3b-instruct:free',
+          // 'openrouter/auto' wählt automatisch das beste verfügbare Modell
+          // Da wir keine Kosten wollen, schränken wir es über das provider-Objekt ein
+          model: 'openrouter/auto',
           messages: [
             {
               role: 'user',
               content: prompt
             }
           ],
-          max_tokens: 500,
-          temperature: 0.7
+          // Hier ist der Trick: Wir erlauben NUR kostenlose Provider
+          provider: {
+            order: ["HuggingFace", "Together", "DeepInfra"],
+            require_parameters: false
+          }
         })
       }
     );
 
     const data = await response.json();
     
-    console.log('Response status:', response.status);
-    console.log('Response data:', JSON.stringify(data, null, 2));
-    
-    if (!response.ok) {
-      return res.status(response.status).json({ 
-        error: `API Error: ${response.status} - ${JSON.stringify(data)}` 
-      });
+    // Falls OpenRouter trotz Status 200 einen Fehler im JSON schickt
+    if (data.error) {
+       console.error('OpenRouter Internal Error:', data.error);
+       return res.status(402).json({ error: data.error.message });
     }
-    
+
     res.json(data);
   } catch (error) {
-    console.error('Server error:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Send, Lightbulb, CheckCircle, XCircle, Key } from 'lucide-react';
+import { Send, Lightbulb, CheckCircle, XCircle, Key, Brain, ArrowRight, Clipboard } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Brain } from 'lucide-react';
 import promptingImage from './assets/prompting.png';
 
 const PromptCraft = () => {
@@ -83,44 +82,15 @@ const PromptCraft = () => {
     setPromptData(prev => ({ ...prev, [field]: value }));
   };
 
-  const getPromptSegments = () => {
-    // Wir mappen über das 'steps' Array, damit die Reihenfolge 
-    // exakt der Eingabe-Reihenfolge entspricht
-    return steps
-      .map(step => ({
-        id: step.id,
-        label: step.title,
-        value: promptData[step.id],
-        color: getSegmentColor(step.id) // Hilfsfunktion für Farben
-      }))
-      .filter(s => s.value && s.value.trim() !== '');
-  };
-  
-  // Hilfsfunktion für die Farben der Labels in der Vorschau
-  const getSegmentColor = (id) => {
-    // Findet den Schritt im steps-Array, um die Kategorie zu bestimmen
-    const step = steps.find(s => s.id === id);
-    if (!step) return 'text-gray-600 border-gray-200';
-  
-    switch(step.category) {
-      case 'Essenziell': return 'text-green-600 border-green-300';
-      case 'Wichtig': return 'text-blue-600 border-blue-300';
-      case 'Nice to have': return 'text-purple-600 border-purple-300';
-      default: return 'text-gray-600 border-gray-200';
-    }
-  };
-  
-  // Der finale Prompt für die API nutzt nun auch die korrekte Reihenfolge
   const buildFullPrompt = () => {
-    return getPromptSegments()
-      .map(s => `### ${s.label}\n${s.value}`)
-      .join('\n\n');
-  };
-
-  const getFullParagraph = () => {
-    return getPromptSegments()
-      .map(s => s.value.trim())
-      .join(' '); // Verbindet alles mit einem Leerzeichen zu einem Fließtext
+    let prompt = '';
+    if (promptData.persona) prompt += `### Persona\n${promptData.persona}\n\n`;
+    if (promptData.kontext) prompt += `### Kontext\n${promptData.kontext}\n\n`;
+    if (promptData.aufgabe) prompt += `### Aufgabe\n${promptData.aufgabe}\n`;
+    if (promptData.format) prompt += `### Format\n${promptData.format}\n`;
+    if (promptData.tonfall) prompt += `### Tonfall\n${promptData.tonfall}\n`;
+    if (promptData.beispiel) prompt += `\n### Beispiel\n${promptData.beispiel}`;
+    return prompt;
   };
 
   const saveApiKey = () => {
@@ -133,35 +103,23 @@ const PromptCraft = () => {
       setResponse('Bitte gib zuerst deinen OpenRouter API Key ein.');
       return;
     }
-
     const fullPrompt = buildFullPrompt();
     if (!fullPrompt.trim()) return;
-
     setLoading(true);
     setResponse('');
-
     try {
       const apiResponse = await fetch('http://localhost:3001/api/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: fullPrompt,
-          apiKey: apiKey
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: fullPrompt, apiKey: apiKey })
       });
-
       const data = await apiResponse.json();
-      
-      console.log('Received data:', data);
-      
       if (data.error) {
-        setResponse(`Fehler: ${data.error}`);
+        setResponse(`Fehler: ${data.error.message || JSON.stringify(data.error)}`);
       } else if (data.choices && data.choices[0]?.message?.content) {
         setResponse(data.choices[0].message.content);
       } else {
-        setResponse('Unerwartetes Antwortformat: ' + JSON.stringify(data));
+        setResponse('Unerwartetes Antwortformat.');
       }
     } catch (error) {
       setResponse('Fehler: Stelle sicher, dass der Backend-Server läuft (npm run server)');
@@ -176,293 +134,167 @@ const PromptCraft = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 sticky top-0 z-50">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Micro-Lernangebot: Prompting zur Steigerung der Effizienz
-          </h1>
-          <p className="text-gray-600">
-            Interaktives Prompt Engineering
-          </p>
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 text-left">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* HEADER AREA */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Was macht gutes Prompting aus?</h1>
+            <p className="text-slate-500 font-medium">Grundbausteine eines Prompts</p>
+          </div>
           
-          {showApiKeyInput && (
-            <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-800 mb-2">
-                    OpenRouter API Key benötigt 
-                  </h3>
-                  <ol className="text-sm text-gray-600 mb-3 space-y-1">
-                    <li>1. Gehe zu <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">openrouter.ai/keys</a></li>
-                    <li>2. Melde dich mit Google/GitHub an</li>
-                    <li>3. Klicke "Create Key"</li>
-                    <li>4. Kopiere den Key und füge ihn hier ein</li>
-                  </ol>
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="sk-or-..."
-                      className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      onClick={saveApiKey}
-                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                    >
-                      Speichern
-                    </button>
-                  </div>
-                </div>
+          <div className="flex flex-col items-end gap-2">
+            {showApiKeyInput ? (
+              <div className="flex gap-2 bg-slate-100 p-2 rounded-xl border border-slate-200">
+                <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="API Key eingeben" className="bg-transparent text-sm px-2 outline-none w-48" />
+                <button onClick={saveApiKey} className="bg-slate-900 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-black transition-colors">Save</button>
               </div>
-            </div>
-          )}
-
-          {!showApiKeyInput && (
-            <div className="mt-4 flex items-center justify-between">
-              <div className="flex items-center gap-4 flex-1">
-                <div className="flex-1 bg-gray-200 rounded-full h-3">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${getCompletionScore()}%` }}
-                  />
-                </div>
-                <span className="text-sm font-semibold text-gray-700">
-                  {getCompletionScore()}% vollständig
-                </span>
-              </div>
-              <button
-                onClick={() => setShowApiKeyInput(true)}
-                className="ml-4 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
-              >
-                <Key size={14} />
-                API Key ändern
+            ) : (
+              <button onClick={() => setShowApiKeyInput(true)} className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">
+                <Key size={14} /> Key ändern
               </button>
+            )}
+            <div className="w-48 bg-slate-200 rounded-full h-2 overflow-hidden">
+               <div className="bg-blue-500 h-full transition-all duration-700" style={{ width: `${getCompletionScore()}%` }}></div>
             </div>
-          )}
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">{getCompletionScore()}% Completion Score</span>
+          </div>
         </div>
 
-       {/* Prompt Engineering Einführung */}
-        <div className="bg-white rounded-lg shadow-md p-8 mb-6 border-l-8 border-purple-500">
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-4 tracking-tight">
-          Präzision in der KI-Kommunikation
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-4">
-              <p className="text-gray-700 leading-relaxed text-lg">
-                KI-Modelle sind wie hochbegabte Praktikanten: Sie sind extrem fähig, benötigen aber 
-                <strong> präzise Leitplanken</strong>. Ohne Struktur bleibt das Ergebnis oft generisch oder fehlerhaft.
-              </p>
-              
-              <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
-                <h4 className="font-bold text-purple-900 mb-1 flex items-center gap-2">
-                  <Brain size={18} /> Das Ziel dieses Microlearnings
-                </h4>
-                <p className="text-sm text-purple-800">
-                  Du lernst hier nicht nur das "Tippen", sondern ein <strong>mentales Framework</strong>. 
-                  Wir nutzen das 6-Elemente-Modell, um die Varianz der KI-Antworten zu reduzieren und 
-                  die Ergebnisqualität messbar zu steigern.
-                </p>
-              </div>
-
-              <p className="text-gray-600 text-sm">
-                In den folgenden Schritten baust du einen professionellen Prompt auf. Beobachte rechts live, 
-                wie aus einzelnen Bausteinen eine mächtige Anweisung wird.
-              </p>
+        {/* INTRODUCTION SECTION */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
+              <Brain size={14} /> Cognitive Scaffolding
             </div>
-
-            <div className="relative group">
-              <img 
-                src={promptingImage} 
-                alt="Didaktisches Framework der 6 Prompt-Elemente" 
-                className="w-full h-auto rounded-xl shadow-lg transition-transform duration-300 group-hover:scale-[1.02]"
-              />
-              <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-black/10"></div>
+            <h2 className="text-3xl font-bold text-slate-900 leading-tight">Präzision in der KI-Kommunikation</h2>
+            <p className="text-slate-600 leading-relaxed">
+              KI-Modelle benötigen <strong>präzise Leitplanken</strong>. Ohne Struktur bleibt das Ergebnis oft generisch. 
+              Wir nutzen das 6-Elemente-Modell, um die Ergebnisqualität messbar zu steigern.
+            </p>
+            <div className="p-4 bg-slate-50 rounded-xl border-l-4 border-blue-500 text-sm italic text-slate-600">
+              "Gute Prompts können die Produktivität um das 10-fache steigern."
             </div>
           </div>
-
+          <div className="relative group">
+            <img src={promptingImage} alt="Cheat Sheet" className="w-full h-auto rounded-xl shadow-2xl transition-transform group-hover:scale-[1.01]" />
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* LEFT: INPUT STEPS */}
+          <div className="lg:col-span-7 space-y-4">
             {steps.map((step, index) => (
               <div 
                 key={step.id}
-                className={`bg-white rounded-lg shadow-md p-5 transition-all cursor-pointer hover:shadow-lg ${
-                  activeStep === index ? 'ring-2 ring-blue-500' : ''
-                }`}
                 onClick={() => setActiveStep(index)}
+                className={`bg-white rounded-2xl p-6 border-2 transition-all cursor-pointer ${
+                  activeStep === index ? 'border-blue-500 shadow-md scale-[1.01]' : 'border-transparent shadow-sm opacity-80 grayscale-[0.3]'
+                }`}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-gray-300">
-                      {index + 1}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <span className="text-3xl font-black text-slate-200">{index + 1}</span>
+                    <h3 className="text-xl font-bold text-slate-800">{step.title}</h3>
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-widest border ${getCategoryColor(step.category)}`}>
+                      {step.category}
                     </span>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-800">
-                        {step.title}
-                      </h3>
-                      <span className={`text-xs px-2 py-1 rounded-full border ${getCategoryColor(step.category)}`}>
-                        {step.category}
-                      </span>
-                    </div>
                   </div>
-                  {promptData[step.id] ? (
-                    <CheckCircle className="text-green-500" size={20} />
-                  ) : (
-                    <XCircle className="text-gray-300" size={20} />
-                  )}
+                  {promptData[step.id] ? <CheckCircle className="text-green-500" size={24} /> : <div className="w-6 h-6 rounded-full border-2 border-slate-100"></div>}
                 </div>
-
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {step.label}
-                </label>
                 
                 <textarea
                   value={promptData[step.id]}
                   onChange={(e) => updatePromptData(step.id, e.target.value)}
                   placeholder={step.placeholder}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all text-slate-700"
                   rows={3}
                 />
 
-                <div className="mt-2 flex items-start gap-2 bg-yellow-50 p-2 rounded">
-                  <Lightbulb className="text-yellow-600 flex-shrink-0 mt-1" size={16} />
-                  <p className="text-xs text-gray-600">{step.tip}</p>
-                </div>
-              </div>
-            ))}
-
-            <button
-              onClick={sendPrompt}
-              disabled={loading || !promptData.aufgabe || !apiKey}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-4 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
-            >
-              {loading ? (
-                'Lädt...'
-              ) : (
-                <>
-                  <Send size={20} />
-                  Prompt an KI senden
-                </>
-              )}
-            </button>
-            <Link 
-              to="/techniques"
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
-            >
-              
-              Weiter zum fortgeschrittenen Lernangebot →
-            </Link>
-          </div>
-
-         {/* Ersetze die gesamte rechte Spalte (die mit der Vorschau) durch diesen Code */}
-         <div className="space-y-4 lg:sticky lg:top-42 lg:self-start lg:max-h-[calc(100vh-120px)] flex flex-col">
-  
-            {/* SEKTION 1: PROMPT VORSCHAU - Kompakter optimiert */}
-            <div className="bg-white rounded-lg shadow-md p-4 border-t-4 border-blue-500 flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  Dein Prompt-Entwurf
-                </h3>
-              </div>
-
-              <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden flex flex-col text-left">
-                <div className="p-4 overflow-y-auto custom-scrollbar" style={{ maxHeight: '50vh' }}>
-                  {getPromptSegments().length > 0 ? (
-                    <div className="space-y-4">
-                      
-                      {/* Die Timeline Ansicht */}
-                      <div className="space-y-4">
-                        {getPromptSegments().map((segment, index) => {
-                          const colorClass = getSegmentColor(segment.id);
-                          return (
-                            <div key={segment.id} className="relative pl-6">
-                              {index !== getPromptSegments().length - 1 && (
-                                <div className="absolute left-[7px] top-6 bottom-[-16px] w-0.5 bg-slate-200"></div>
-                              )}
-                              <div className="absolute left-0 top-1.5 h-3.5 w-3.5 rounded-full bg-white border-2 border-blue-400 z-10"></div>
-                              <div className="flex flex-col">
-                                <span className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${colorClass.split(' ')[0]}`}>
-                                  {segment.label}
-                                </span>
-                                <p className="text-sm text-slate-700 leading-snug italic opacity-80">
-                                  {segment.value}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Der zusammenhängende Fließtext */}
-                      <div className="mt-4 pt-4 border-t border-slate-200">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-2">
-                          Zusammengefasster Fließtext
-                        </span>
-                        <div className="bg-white p-3 rounded-lg border border-blue-100 shadow-sm relative">
-                          <p className="text-sm text-slate-800 leading-relaxed">
-                            {getFullParagraph()}
-                          </p>
-                          <button 
-                            onClick={() => navigator.clipboard.writeText(getFullParagraph())}
-                            className="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-blue-500 rounded transition-colors"
-                            title="Kopieren"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                      <Send size={24} className="opacity-20 mb-2" />
-                      <p className="text-sm italic text-center">Warte auf Eingabe der Bausteine...</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-              {/* SEKTION 2: KI ANTWORT (Wiederhergestellt & Optimiert) */}
-              <div className="bg-white rounded-lg shadow-md p-5 border-t-4 border-green-500 flex flex-col min-h-[100px]">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <CheckCircle size={20} className="text-green-500" />
-                  KI Antwort
-                </h3>
-                
-                {loading ? (
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-2"></div>
-                    <p className="text-xs text-slate-500">KI denkt nach...</p>
-                  </div>
-                ) : response ? (
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-sm text-slate-700 text-left whitespace-pre-wrap overflow-y-auto max-h-[30vh]">
-                    {response}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-slate-400 text-xs italic">
-                    Sende deinen Prompt ab, um hier das Ergebnis zu sehen.
+                {activeStep === index && (
+                  <div className="mt-4 flex items-start gap-3 bg-blue-50 p-3 rounded-lg animate-in fade-in">
+                    <Lightbulb className="text-blue-600 flex-shrink-0" size={18} />
+                    <p className="text-xs text-blue-800 font-medium leading-relaxed">{step.tip}</p>
                   </div>
                 )}
               </div>
+            ))}
 
-              {/* SEKTION 3: REFLEXION (Optional, nur wenn Response da ist) */}
-              {response && !response.includes('Fehler:') && (
-                <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg shadow-md p-4 border border-green-200 animate-in fade-in slide-in-from-bottom-2">
-                  <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-                    <Lightbulb size={16} className="text-yellow-600" />
-                    Kurze Reflexion:
-                  </h4>
-                  <p className="text-[11px] text-slate-600 leading-snug">
-                    Hat die Persona den Tonfall getroffen? Wenn nicht, präzisiere Schritt 5 & 6.
-                  </p>
+            <div className="flex flex-col md:flex-row gap-4 pt-4">
+                <button
+                onClick={sendPrompt}
+                disabled={loading || !promptData.aufgabe || !apiKey}
+                className="flex-1 bg-slate-900 text-white py-5 rounded-2xl font-black hover:bg-black disabled:opacity-50 flex items-center justify-center gap-3 transition-all shadow-xl uppercase tracking-widest text-sm"
+                >
+                {loading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <><Send size={20} /> Prompt senden</>}
+                </button>
+                <Link to="/techniques" className="flex-1 bg-white border-2 border-slate-200 text-slate-900 py-5 rounded-2xl font-black hover:border-purple-500 hover:text-purple-600 flex items-center justify-center gap-3 transition-all shadow-sm uppercase tracking-widest text-sm">
+                Fortgeschrittene Methoden <ArrowRight size={20} />
+                </Link>
+            </div>
+          </div>
+
+          {/* RIGHT: LIVE PREVIEW & RESPONSE */}
+          <div className="lg:col-span-5 space-y-6">
+            
+            {/* PROMPT PREVIEW */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden lg:sticky lg:top-8">
+              <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Live Blueprint</h3>
+                <button onClick={() => navigator.clipboard.writeText(buildFullPrompt())} className="text-slate-400 hover:text-blue-500"><Clipboard size={16} /></button>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4 font-mono text-[13px] leading-relaxed text-slate-600">
+                  {Object.entries(promptData).map(([key, value]) => value && (
+                    <div key={key} className="relative pl-4 border-l-2 border-blue-200">
+                      <span className="text-[10px] font-bold text-blue-500 uppercase block mb-1">{key}</span>
+                      <p className="italic">{value}</p>
+                    </div>
+                  ))}
+                  {!Object.values(promptData).some(v => v) && (
+                    <p className="text-slate-300 italic text-center py-10">Bausteine füllen, um Entwurf zu sehen...</p>
+                  )}
                 </div>
-              )}
+              </div>
+
+              {/* AI RESPONSE AREA */}
+              <div className="p-6 border-t-4 border-green-500 bg-green-50/30">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className={`w-2 h-2 rounded-full ${loading ? 'bg-orange-500 animate-pulse' : 'bg-green-500'}`}></div>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-700">KI-Output</h3>
+                </div>
+                
+                {loading ? (
+                  <div className="space-y-2 py-4">
+                    <div className="h-2 bg-slate-200 rounded animate-pulse"></div>
+                    <div className="h-2 bg-slate-200 rounded animate-pulse w-5/6"></div>
+                    <div className="h-2 bg-slate-200 rounded animate-pulse w-4/6"></div>
+                  </div>
+                ) : response ? (
+                  <div className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap animate-in fade-in bg-white p-4 rounded-xl border border-green-100 shadow-sm max-h-[400px] overflow-y-auto custom-scrollbar">
+                    {response}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic text-center py-6">Bereit für die Generierung.</p>
+                )}
+              </div>
             </div>
 
+            {response && !response.includes('Fehler') && (
+                <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl">
+                    <h4 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-blue-400 mb-3">
+                        <CheckCircle size={16} /> Reflexion
+                    </h4>
+                    <ul className="text-xs space-y-3 text-slate-300">
+                        <li className="flex gap-2"><span>•</span> War die Antwort spezifisch genug?</li>
+                        <li className="flex gap-2"><span>•</span> Hat die Persona den richtigen Ton getroffen?</li>
+                        <li className="flex gap-2"><span>•</span> Falls nein: Verfeinere Schritt 5 und 6!</li>
+                    </ul>
+                </div>
+            )}
+          </div>
 
         </div>
       </div>
